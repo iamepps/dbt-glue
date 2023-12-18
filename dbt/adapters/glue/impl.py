@@ -800,39 +800,39 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
         except Exception as e:
             logger.error(e)
 
-    def iceberg_create_or_replace_table(self, target_relation, temp_table, partition_by, table_properties):
+    def iceberg_create_or_replace_table(self, target_relation, temp_view, partition_by, table_properties):
         table_properties = self.set_table_properties(table_properties)
         if partition_by is None:
             query = f"""
                         CREATE OR REPLACE TABLE glue_catalog.{target_relation.schema}.{target_relation.name}
                         USING iceberg
                         {table_properties}
-                        AS SELECT * FROM {target_relation.schema}.{temp_table}
+                        AS SELECT * FROM {temp_view}
                 """
         else :
             query = f"""
                         CREATE OR REPLACE TABLE glue_catalog.{target_relation.schema}.{target_relation.name}
                         PARTITIONED BY {partition_by}
                         {table_properties}
-                        AS SELECT * FROM {target_relation.schema}.{temp_table} ORDER BY {partition_by}
+                        AS SELECT * FROM {temp_view} ORDER BY {partition_by}
                 """
         return query
 
-    def iceberg_insert(self, target_relation, temp_table, partition_by):
+    def iceberg_insert(self, target_relation, temp_view, partition_by):
         if partition_by is None:
             query = f"""
                         INSERT INTO glue_catalog.{target_relation.schema}.{target_relation.name}
-                        SELECT * FROM {target_relation.schema}.{temp_table}
+                        SELECT * FROM {temp_view}
                     """
         else :
             query = f"""
                         INSERT INTO glue_catalog.{target_relation.schema}.{target_relation.name}
-                        SELECT * FROM {target_relation.schema}.{temp_table} ORDER BY {partition_by}
+                        SELECT * FROM {temp_view} ORDER BY {partition_by}
                     """
         return query
 
 
-    def iceberg_create_table(self, target_relation, temp_table, partition_by, location, table_properties):
+    def iceberg_create_table(self, target_relation, temp_view, partition_by, location, table_properties):
         table_properties = self.set_table_properties(table_properties)
         if partition_by is None:
             query = f"""
@@ -840,7 +840,7 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
                         USING iceberg
                         LOCATION '{location}'
                         {table_properties}
-                        AS SELECT * FROM {target_relation.schema}.{temp_table}
+                        AS SELECT * FROM {temp_view}
                     """
         else :
             query = f"""
@@ -849,16 +849,16 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
                         PARTITIONED BY {partition_by}
                         LOCATION '{location}'
                         {table_properties}
-                        AS SELECT * FROM {target_relation.schema}.{temp_table} ORDER BY {partition_by}
+                        AS SELECT * FROM {temp_view} ORDER BY {partition_by}
                     """
         return query
 
 
-    def iceberg_upsert(self, target_relation, temp_table, merge_key):
+    def iceberg_upsert(self, target_relation, temp_view, merge_key):
     ## Perform merge operation on incremental input data with MERGE INTO. This section of the code uses Spark SQL to showcase the expressive SQL approach of Iceberg to perform a Merge operation
         query = f"""
         MERGE INTO glue_catalog.{target_relation.schema}.{target_relation.name} t
-        USING (SELECT * FROM {temp_table}) s
+        USING (SELECT * FROM {temp_view}) s
         ON {self.set_iceberg_merge_key(merge_key=merge_key)}
         WHEN MATCHED THEN UPDATE SET *
         WHEN NOT MATCHED THEN INSERT *
@@ -870,7 +870,7 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
         session, client = self.get_connection()
 
         tmp_suffix = f"_{str(uuid.uuid4())[:8]}"
-        tmp_table =f"tmp_{target_relation.name}{tmp_suffix}"
+        tmp_view =f"tmp_{target_relation.name}{tmp_suffix}"
 
 
         if partition_key is not None:
@@ -909,27 +909,27 @@ outputDf = inputDf.drop("dbt_unique_key").withColumn("update_iceberg_ts",current
 '''
         # Use standard table instead of temp view to workaround https://github.com/apache/iceberg/issues/7766
         if session.credentials.glue_version == "4.0":
-            tmp_view = f"v_{tmp_table}"
+            tmp_table = tmp_view
             head_code += f'''outputDf.createOrReplaceTempView("{tmp_view}")
 spark.sql("CREATE TABLE {target_relation.schema}.{tmp_table} LOCATION '{session.credentials.location}/{target_relation.schema}/{tmp_table}' AS SELECT * FROM {tmp_view}")
 '''
         else:
-            head_code += f'outputDf.createOrReplaceTempView({tmp_table})'
+            head_code += f'outputDf.createOrReplaceTempView({tmp_view})'
         head_code += '''
 if outputDf.count() > 0:'''
         if isTableExists:
             if write_mode == "append":
                 core_code = f'''
-    spark.sql("""{self.iceberg_insert(target_relation=target_relation, temp_table=tmp_table, partition_by=partition_key)}""") '''
+    spark.sql("""{self.iceberg_insert(target_relation=target_relation, temp_view=tmp_view, partition_by=partition_key)}""") '''
             elif write_mode == 'insert_overwrite':
                 core_code = f'''
-    spark.sql("""{self.iceberg_create_or_replace_table(target_relation=target_relation, temp_table=tmp_table, partition_by=partition_key, table_properties=table_properties)}""") '''
+    spark.sql("""{self.iceberg_create_or_replace_table(target_relation=target_relation, temp_view=tmp_view, partition_by=partition_key, table_properties=table_properties)}""") '''
             elif write_mode == 'merge':
                 core_code = f'''
-    spark.sql("""{self.iceberg_upsert(target_relation=target_relation, temp_table=tmp_table, merge_key=primary_key)}""") '''
+    spark.sql("""{self.iceberg_upsert(target_relation=target_relation, temp_view=tmp_view, merge_key=primary_key)}""") '''
         else:
             core_code = f'''
-    spark.sql("""{self.iceberg_create_table(target_relation=target_relation, tempt_table=tmp_table, partition_by=partition_key, location=location, table_properties=table_properties)}""") '''
+    spark.sql("""{self.iceberg_create_table(target_relation=target_relation, tempt_table=tmp_view, partition_by=partition_key, location=location, table_properties=table_properties)}""") '''
         footer_code = f'''
 spark.sql("""REFRESH TABLE glue_catalog.{target_relation.schema}.{target_relation.name}""")
 '''
