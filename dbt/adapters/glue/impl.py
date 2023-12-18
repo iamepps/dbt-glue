@@ -911,7 +911,7 @@ outputDf = inputDf.drop("dbt_unique_key").withColumn("update_iceberg_ts",current
         if session.credentials.glue_version == "4.0":
             tmp_view = f"v_{tmp_table}"
             head_code += f'''outputDf.createOrReplaceTempView("{tmp_view}")
-spark.sql("CREATE TABLE {tmp_table} LOCATION '{session.credentials.location}/{target_relation.schema}/{tmp_table}' AS SELECT * FROM {tmp_view}")
+spark.sql("CREATE TABLE {target_relation.schema}.{tmp_table} LOCATION '{session.credentials.location}/{target_relation.schema}/{tmp_table}' AS SELECT * FROM {tmp_view}")
 '''
         else:
             head_code += f'outputDf.createOrReplaceTempView({tmp_table})'
@@ -934,7 +934,7 @@ if outputDf.count() > 0:'''
 spark.sql("""REFRESH TABLE glue_catalog.{target_relation.schema}.{target_relation.name}""")
 '''
         if session.credentials.glue_version == "4.0": # Clean up the table used for the workaround
-            footer_code += f'''spark.sql("DROP TABLE IF EXISTS {tmp_table}")
+            footer_code += f'''spark.sql("DROP TABLE IF EXISTS {target_relation.schema}.{tmp_table}")
 from awsglue.context import GlueContext
 GlueContext(spark.sparkContext).purge_s3_path("{session.credentials.location}/{target_relation.schema}/{tmp_table}"'''
             footer_code += ', {"retentionPeriod": 0})'
