@@ -807,14 +807,14 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
                         CREATE OR REPLACE TABLE glue_catalog.{target_relation.schema}.{target_relation.name}
                         USING iceberg
                         {table_properties}
-                        AS SELECT * FROM {temp_table}
+                        AS SELECT * FROM {target_relation.schema}.{temp_table}
                 """
         else :
             query = f"""
                         CREATE OR REPLACE TABLE glue_catalog.{target_relation.schema}.{target_relation.name}
                         PARTITIONED BY {partition_by}
                         {table_properties}
-                        AS SELECT * FROM {temp_table} ORDER BY {partition_by}
+                        AS SELECT * FROM {target_relation.schema}.{temp_table} ORDER BY {partition_by}
                 """
         return query
 
@@ -822,12 +822,12 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
         if partition_by is None:
             query = f"""
                         INSERT INTO glue_catalog.{target_relation.schema}.{target_relation.name}
-                        SELECT * FROM {temp_table}
+                        SELECT * FROM {target_relation.schema}.{temp_table}
                     """
         else :
             query = f"""
                         INSERT INTO glue_catalog.{target_relation.schema}.{target_relation.name}
-                        SELECT * FROM {temp_table} ORDER BY {partition_by}
+                        SELECT * FROM {target_relation.schema}.{temp_table} ORDER BY {partition_by}
                     """
         return query
 
@@ -840,7 +840,7 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
                         USING iceberg
                         LOCATION '{location}'
                         {table_properties}
-                        AS SELECT * FROM {temp_table}
+                        AS SELECT * FROM {target_relation.schema}.{temp_table}
                     """
         else :
             query = f"""
@@ -849,7 +849,7 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
                         PARTITIONED BY {partition_by}
                         LOCATION '{location}'
                         {table_properties}
-                        AS SELECT * FROM {temp_table} ORDER BY {partition_by}
+                        AS SELECT * FROM {target_relation.schema}.{temp_table} ORDER BY {partition_by}
                     """
         return query
 
