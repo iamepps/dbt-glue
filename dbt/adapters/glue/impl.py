@@ -929,7 +929,7 @@ if outputDf.count() > 0:'''
     spark.sql("""{self.iceberg_upsert(target_relation=target_relation, temp_view=tmp_view, merge_key=primary_key)}""") '''
         else:
             core_code = f'''
-    spark.sql("""{self.iceberg_create_table(target_relation=target_relation, temp_table=tmp_view, partition_by=partition_key, location=location, table_properties=table_properties)}""") '''
+    spark.sql("""{self.iceberg_create_table(target_relation=target_relation, temp_view=tmp_view, partition_by=partition_key, location=location, table_properties=table_properties)}""") '''
         footer_code = f'''
 spark.sql("""REFRESH TABLE glue_catalog.{target_relation.schema}.{target_relation.name}""")
 '''
