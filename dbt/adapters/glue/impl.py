@@ -932,9 +932,9 @@ if outputDf.count() > 0:'''
 spark.sql("""REFRESH TABLE glue_catalog.{target_relation.schema}.{target_relation.name}""")
 '''
         if session.credentials.glue_version == "4.0": # Clean up the table used for the workaround
-            footer_code += f'''spark.sql("DROP TABLE IF EXISTS {target_relation.schema}.{tmp_table}")
+            footer_code += f'''spark.sql("DROP TABLE IF EXISTS {target_relation.schema}.{tmp_view}")
 from awsglue.context import GlueContext
-GlueContext(spark.sparkContext).purge_s3_path("{session.credentials.location}/{target_relation.schema}/{tmp_table}"'''
+GlueContext(spark.sparkContext).purge_s3_path("{session.credentials.location}/{target_relation.schema}/{tmp_view}"'''
             footer_code += ', {"retentionPeriod": 0})'
         footer_code += f'''
 SqlWrapper2.execute("""SELECT * FROM glue_catalog.{target_relation.schema}.{target_relation.name} LIMIT 1""")
