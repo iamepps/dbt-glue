@@ -871,7 +871,6 @@ SqlWrapper2.execute("""SELECT * FROM {target_relation.schema}.{target_relation.n
 
         tmp_view = f"tmp_{target_relation.name}{str(uuid.uuid4())[:8]}"
 
-
         if partition_key is not None:
             partition_key  = '(' + ','.join(partition_key) + ')'
         if custom_location == "empty":
@@ -908,9 +907,11 @@ outputDf = inputDf.drop("dbt_unique_key").withColumn("update_iceberg_ts",current
 '''
         # Use standard table instead of temp view to workaround https://github.com/apache/iceberg/issues/7766
         if session.credentials.glue_version == "4.0":
+
             head_code += f'''outputDf.createOrReplaceTempView("tmp_{tmp_view}")
 spark.sql("CREATE TABLE {target_relation.schema}.{tmp_view} LOCATION '{session.credentials.location}/{target_relation.schema}/{tmp_view}' AS SELECT * FROM tmp_{tmp_view}")
 '''
+            tmp_view = f"{target_relation.schema}.{tmp_view}"
         else:
             head_code += f'outputDf.createOrReplaceTempView({tmp_view})'
         head_code += '''
