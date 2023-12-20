@@ -908,9 +908,8 @@ outputDf = inputDf.drop("dbt_unique_key").withColumn("update_iceberg_ts",current
 '''
         # Use standard table instead of temp view to workaround https://github.com/apache/iceberg/issues/7766
         if session.credentials.glue_version == "4.0":
-            tmp_table = f"tmp_{target_relation.name}{str(uuid.uuid4())[:8]}"
-            head_code += f'''outputDf.createOrReplaceTempView("{tmp_view}")
-spark.sql("CREATE TABLE {target_relation.schema}.{tmp_table} LOCATION '{session.credentials.location}/{target_relation.schema}/{tmp_table}' AS SELECT * FROM {tmp_view}")
+            head_code += f'''outputDf.createOrReplaceTempView("tmp_{tmp_view}")
+spark.sql("CREATE TABLE {target_relation.schema}.{tmp_view} LOCATION '{session.credentials.location}/{target_relation.schema}/{tmp_table}' AS SELECT * FROM tmp_{tmp_view}")
 '''
         else:
             head_code += f'outputDf.createOrReplaceTempView({tmp_view})'
